@@ -39,3 +39,9 @@ This process ensures that, even with significant network delays (>5 seconds), th
 - `requests` to make API requests
 - `smtplib` and `email` to send email alerts
 - `shapely` to easily work with GeoJSON data
+
+## Possible modifications
+
+The system is currently designed to query the API every few minutes in order to easily accommodate large numbers of clinicians. If we know for sure that the number of clinicians that need to be monitored will be lower, we can safely decrease the 4-minute alert interval to something in the order of several seconds while still safely avoiding the API query limit.
+
+Another possible enhancement would be to measure the distance between the clinician and the bounding box and report that in the email alerts. If the distance is small, then the clinician probably just left the region on accident, and it's not a serious issue. However, if the clinician is miles from the target location and rapidly moving further away, it's indicative of more serious issues that need to be promptly addressed.
