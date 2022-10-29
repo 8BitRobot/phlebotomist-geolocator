@@ -30,6 +30,8 @@ More specifically, each monitoring interval for ONE clinician is comprised of:
 
 This process ensures that, even with significant network delays (>5 seconds), the alert will be sent within 5 minutes and clinicians can be tracked with close to real-time updates.
 
+![image](https://user-images.githubusercontent.com/32723225/198849429-73cf27e6-3af3-46d2-a168-c71d8a2c4357.png)
+
 ## Libraries used
 
 - `datetime` to run the service for an extended period of time (in this case, 1 hour)
