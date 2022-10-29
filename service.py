@@ -163,13 +163,13 @@ def determine_valid_location(point, bounds):
 
 
 if __name__ == "__main__":
-    print("starting!")
+    print(f"starting at {datetime.now()}")
 
     # log into the mailer
     config.MAILER_OBJ.login(secrets.EMAIL_ADDR, secrets.PASSWORD)
     
     # calculate the time that the program should quit
-    endtime = datetime.now() + timedelta(hours=1)
+    endtime = datetime.now() + timedelta(minutes=60)
 
     # initialize dict of IDs and statuses
     statuses = {}
