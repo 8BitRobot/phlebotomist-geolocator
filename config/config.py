@@ -2,7 +2,7 @@ import smtplib, ssl
 from email.mime.text import MIMEText
 
 SENDER      = "premgiridhar11@gmail.com"
-RECIPIENTS  = "premgiridhar11@gmail.com"
+RECIPIENTS  = "premgiridhar11+alerts@gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 PORT        = 465
 SSL_CONTEXT = ssl.create_default_context()

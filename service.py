@@ -24,6 +24,28 @@ def poll_sh_api(id_str):
 
 
 '''
+Wrap email functions in a try/except to handle SMTP connection timeouts.
+'''
+def attempt_email(email_type, id_str):
+    repeat = True
+    while repeat:
+        repeat = False
+        try:
+            if email_type == "error":
+                send_error_email(id_str)
+            elif email_type == "lost":
+                send_lost_email(id_str)
+            elif email_type == "critical":
+                send_critical_email(id_str)
+            elif email_type == "safe":
+                send_safe_email(id_str)
+        except smtplib.SMTPSenderRefused:
+            config.MAILER_OBJ  = smtplib.SMTP_SSL(config.SMTP_SERVER, config.PORT, context=config.SSL_CONTEXT)
+            config.MAILER_OBJ.login(secrets.EMAIL_ADDR, secrets.PASSWORD)
+            # repeat = True
+
+
+'''
 Send an email alert indicating that an error occurred while attempting to find the status of a given phlebotomist.
 
 Params:
@@ -56,7 +78,8 @@ def send_lost_email(id_str):
 
 
 '''
-Send an email alert indicating that a phlebotomist has exited their bounding zone.
+Send an email alert indicating that a phlebotomist has been outside the bounding zone
+for an extended period of time.
 
 Params:
     id_str - a string containing the ID number of the phlebotomist
@@ -81,7 +104,7 @@ Params:
 Doesn't return anything.
 '''
 def send_safe_email(id_str):
-    msg = MIMEText(config.LOST_MESSAGE(id_str), "plain")
+    msg = MIMEText(config.SAFE_MESSAGE(id_str), "plain")
     msg["From"] = config.SENDER
     msg["To"] = config.RECIPIENTS
     msg["Subject"] = f"[ALERT] Returned to Bounds Clinician ID {id_str}"
@@ -102,12 +125,19 @@ def is_phlebotomist_safe(id_str):
     res = poll_sh_api(id_str)
     if "error" in res:
         # if the "error" key exists in the response, an error has occurred;
-        # send an email indicating as such
-        send_error_email(id_str)
+        # try to make the api call again, up to 5 times
+        counts = 5
+        while "error" in res and counts > 0:
+            time.sleep(5)
+            res = poll_sh_api(id_str)
+            counts -= 1
+        # if the API is still erroring, stop trying and move onto the next clinician
+        if "error" in res:
+            return "error"
     else:
         if not determine_valid_location(res["features"][0]["geometry"], res["features"][1:]):
-            return False
-    return True
+            return "unsafe"
+    return "safe"
 
 '''
 Determine whether the phlebotomist at location `point` is within the boundaries indicated by `bounds`.
@@ -133,6 +163,8 @@ def determine_valid_location(point, bounds):
 
 
 if __name__ == "__main__":
+    print("starting!")
+
     # log into the mailer
     config.MAILER_OBJ.login(secrets.EMAIL_ADDR, secrets.PASSWORD)
     
@@ -148,18 +180,22 @@ if __name__ == "__main__":
         for id_str in config.VALID_IDS:
             result = is_phlebotomist_safe(id_str)
             # if they're lost (and weren't already lost), send alert
-            if not result and (id_str not in statuses or statuses[id_str] == "safe"):
+            if result == "unsafe" and statuses[id_str] == "safe":
                 statuses[id_str] = "lost"
-                send_lost_email(id_str)
+                attempt_email("lost", id_str)
             # if they've been lost for over 4 minutes, send alert
-            if not result and (statuses[id_str] == "lost"):
+            elif result == "unsafe" and statuses[id_str] == "lost":
                 statuses[id_str] = "critical"
-                send_critical_email(id_str)
+                attempt_email("critical", id_str)
             # if they're safe (and weren't already safe), send alert
-            elif result and (statuses[id_str] != "safe"):
+            elif result == "safe" and statuses[id_str] != "safe":
                 statuses[id_str] = "safe"
-                send_safe_email(id_str)
+                attempt_email("safe", id_str)
             # do nothing if they're safe and were already safe
+            # if there was an error, send alert
+            elif result == "error":
+                attempt_email("error", id_str)
         time.sleep(240)
 
     config.MAILER_OBJ.quit()
+    print(f"finished at {datetime.now()}")
